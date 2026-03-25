@@ -397,6 +397,25 @@ Every `rpc` definition in proto files **must** have a corresponding entry in at 
 
 ---
 
+## GraphQL Client Code (genqlient)
+
+- **Use `genqlient`** (`github.com/Khan/genqlient`) for ALL new GraphQL client code — do NOT hand-write GraphQL query strings or response structs.
+- Older files like `query_group.go` were written before genqlient was adopted and should not be used as a reference pattern.
+- Hand-written GraphQL queries are error-prone and vulnerable to GraphQL injection. genqlient provides compile-time type safety and generates clean, idiomatic Go code.
+
+### How to add a new GraphQL query
+
+1. Define your query in the relevant `genqlient.graphql` file (e.g., `internal/profileapi/genqlient.graphql` or `internal/crestapi/genqlient.graphql`).
+2. Run `go generate` on the corresponding `generate.go` file:
+   ```bash
+   go generate internal/profileapi/generate.go
+   ```
+3. The generated client code will appear in `generated/profilev3/generated.go` (or the corresponding output directory configured in `genqlient.yaml`).
+4. **Never** manually edit the generated output files — they are overwritten on each regeneration.
+5. Use the generated type-safe functions in your Go code instead of building raw GraphQL request strings.
+
+---
+
 ## Testing
 
 ### Three-Tier Testing Strategy
@@ -600,6 +619,7 @@ git checkout -b fix/<bug-description>       # Bug fixes
 10. **Don't** introduce compatibility workarounds, deprecated fallback fields, or unrelated refactors that weren't requested.
 11. **Don't** add new RPCs without corresponding authorization policy entries.
 12. **Don't** use `internal/clients` v1 for new inter-service calls — use `clients/v2`.
+13. **Don't** hand-write GraphQL query strings or response structs — use `genqlient` to generate type-safe client code. Older files like `query_group.go` predate this pattern and should not be used as a reference.
 
 ---
 
