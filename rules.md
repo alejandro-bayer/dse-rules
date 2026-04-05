@@ -342,6 +342,8 @@ Use `internal/resourcename` package for constructing and parsing resource names.
 - In Go handlers, call `validate.ProtoMessage(request, logging.New())` before processing.
 - Validation rules include: `min_len`, `pattern` (regex), `required`, field relationships.
 - Do NOT hand-write validation logic that can be expressed as proto annotations.
+- **Enum fields** must use `(buf.validate.field).enum = { defined_only: true }` to reject undefined values. Add `not_in: 0` when the unspecified/zero value is invalid (see `containerimages.proto`, `apps.proto`).
+- **Cross-field CEL validation** (`buf.validate.message.cel`) must reference enum values by fully qualified name — never magic numbers. Use `dse.{domain}.v1.EnumType.VALUE` syntax (e.g., `dse.jobs.v1.JobType.TRAINING`).
 
 ### Audit Records
 
@@ -384,6 +386,13 @@ Domains: `dsemgmt`, `apps`, `models`, `jobs`, `olly`, `containerimages`, `audit`
 - Soft deletes (audit `Deleted` field set, record retained).
 - Shared `Audit` message type for `Created` / `Updated` / `Deleted` metadata.
 - `buf.validate` annotations for request validation.
+
+### Enum Conventions
+
+- Define enums **at package level** when used by a single message or shared across messages (e.g., `ImageFamily`, `JobType`). Define **nested inside a message** only for tightly-scoped status enums (e.g., `Job.LifecycleStatus`, `ApprovalDetails.ApprovalStatus`).
+- Zero value must be `<PREFIX>_UNSPECIFIED = 0` (e.g., `JOB_TYPE_UNSPECIFIED`, `VERSION_BUMP_UNSPECIFIED`).
+- Non-zero values use short names without the enum-type prefix (e.g., `STANDARD`, `TRAINING`, `MAJOR`). This is safe because `ENUM_VALUE_PREFIX` is excluded in `buf.yaml`.
+- In Go, enum `.String()` returns the proto name (e.g., `"STANDARD"`, `"TRAINING"`). Use this when passing values to terraform inputs or external systems.
 
 ### Proto Lint Rules
 
@@ -620,6 +629,7 @@ git checkout -b fix/<bug-description>       # Bug fixes
 11. **Don't** add new RPCs without corresponding authorization policy entries.
 12. **Don't** use `internal/clients` v1 for new inter-service calls — use `clients/v2`.
 13. **Don't** hand-write GraphQL query strings or response structs — use `genqlient` to generate type-safe client code. Older files like `query_group.go` predate this pattern and should not be used as a reference.
+14. **Don't** use magic numbers in CEL expressions for enum comparisons — use fully qualified enum names (e.g., `dse.jobs.v1.JobType.TRAINING` not `2`).
 
 ---
 
