@@ -557,6 +557,32 @@ git checkout -b fix/<bug-description>       # Bug fixes
 - No merge conflicts.
 - Coding standards followed.
 - Service-tester E2E results included.
+- For features that add or modify API fields/endpoints, **manual API testing in `dev`** is expected. Deploy the branch, hit the endpoints with `auth curl`, and include screenshots in the PR. See `CONTRIBUTING.md` for auth setup (`auth login`, `auth curl`, `auth print-access-token`).
+
+### Manual API Testing Notes
+
+When a ticket involves new or changed API behavior (new fields, validation rules, enum values, etc.), create a testing notes file in `testdata/api-calls/` with:
+
+1. Auth prerequisites and environment details.
+2. One section per test scenario with the `auth curl` command and expected response.
+3. A placeholder for screenshots after each test.
+
+Example structure:
+
+```markdown
+## Test 1: Create Resource — Default behavior
+### Request
+\`\`\`bash
+auth curl -X POST https://apis.dse-dev.bayer.com/v1/resources ...
+\`\`\`
+### Expected Result
+- Status: 200 OK
+- Response contains `"field": "DEFAULT_VALUE"`
+### Screenshot
+> _Add screenshot here_
+```
+
+Not every ticket requires this — use judgment. If the change only affects internal logic with no API surface impact, unit tests alone are sufficient.
 
 ---
 
