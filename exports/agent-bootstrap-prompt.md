@@ -330,6 +330,11 @@ Universal anti-patterns to always include (adapted to the project's language):
 - Don't skip error handling for "impossible" cases at system boundaries
 - Don't add compatibility workarounds or deprecated fallback fields that weren't requested
 - Don't rename shared identifiers for "readability" if they flow across repos/systems — document the constraint instead
+- Don't create new files when the functionality belongs in an existing file — check if the package already has a struct/class with similar methods before creating new files
+- Don't create standalone functions when the package uses struct/class methods — add methods to existing types
+- Don't build custom infrastructure (token caching, connection pooling, client builders) when it already exists elsewhere in the codebase — reuse existing helpers
+- Don't use monkey-patching (global vars reassigned for tests) — use interface injection or struct-based mocks
+- Don't start implementing before reading ALL existing files in the target package — the #1 cause of PR rework is rebuilding infrastructure that already exists
 
 #### Section 15: Cross-Repo Coordination (if applicable)
 
@@ -413,7 +418,31 @@ Read the ticket description carefully. Identify:
 - **Cross-repo impact** — does this require changes in other repos?
 - **Testing scope** — API-only? E2E through workers? UI changes?
 
-### 5. Ask clarifying questions
+### 5. Study existing patterns (MANDATORY)
+
+Before writing any code, study the packages you're about to modify:
+
+```bash
+# 1. List all files in the target package/directory
+ls -la <target-directory>/
+
+# 2. Read the main files end-to-end — especially client structs and helper functions
+cat <target-directory>/*.go | head -500   # or *.ts, *.py, etc.
+
+# 3. Search for existing helpers that might already do what you need
+grep -rn "func " <target-directory>/ | grep -i "<keyword>"
+grep -rn "func build\|func new\|func New" <related-directories>/
+```
+
+Answer these questions before proceeding:
+- **What structs/classes already exist?** — new methods go on these, not in new files.
+- **What helper functions already exist?** — don't rebuild what exists.
+- **What patterns do similar features follow?** Find 2-3 existing implementations of similar functionality and note the pattern.
+- **Does the package use interfaces, struct/class methods, or standalone functions?** Match the existing style.
+
+If you skip this step and jump straight to coding, you WILL create duplicated infrastructure. This is the #1 cause of PR rework.
+
+### 6. Ask clarifying questions
 
 Before writing any code, ask the user about anything unclear. Common questions:
 - "Does this change affect other repos or downstream consumers?"
@@ -439,7 +468,7 @@ For non-trivial tickets (anything beyond a single-file change), produce a writte
 
 Present the plan to the user. **Wait for approval before writing code.**
 
-### 7. Begin implementation
+### 8. Begin implementation
 
 Once the plan is approved:
 1. Start with schema/contract changes (if any) → run code generation
@@ -458,6 +487,7 @@ Follow the implementation order from the plan. Mark progress using the todo list
 - Never commit to main directly — always use a feature branch
 - Never skip the planning step for multi-file changes
 - Never start coding before understanding cross-repo impact
+- **Never skip Step 5 (Study existing patterns)** — this is the #1 cause of PR rework. If the plan's "Patterns to follow" row is empty, the plan is incomplete. Reject it and go back to Step 5.
 - Always pull latest main before branching
 - If the ticket is ambiguous, ask — don't guess
 
@@ -526,6 +556,7 @@ cd <REAL_PROJECT_ROOT>
 
 ### Architecture & Code
 
+- [ ] **Pattern alignment**: New code follows the same pattern as existing similar features in the codebase (verified by reading 2-3 analogous implementations). No new files created when the functionality belongs in an existing file. No standalone functions when the package uses struct/class methods.
 - [ ] Implementation matches the approved plan scope (no scope creep)
 - [ ] Auto-generated files NOT hand-edited
 - [ ] Logging uses the project's standard library/pattern
@@ -842,14 +873,38 @@ git diff --name-only origin/main...HEAD
 
 Read each changed file completely. Understand what was added, modified, and removed.
 
-### 2. Internal consistency
+### 2. Pattern alignment
+
+For each new file or function added, verify it follows existing patterns:
+
+```bash
+# For each new file: does a similar file already exist in the same package?
+ls <target-directory>/
+
+# For each new function: does the package use struct/class methods or standalone functions?
+grep -n "^func " <target-directory>/*.go | head -20   # adapt for your language
+grep -n "^func (" <target-directory>/*.go | head -20
+
+# For each new helper: does a similar helper already exist?
+grep -rn "func build\|func new\|func New" <related-directories>/ | head -20
+```
+
+Check:
+- **No new files** when the functionality belongs in an existing file
+- **No standalone functions** when the package uses struct/class methods
+- **No rebuilt infrastructure** — token caching, client builders, connection pooling — that already exists elsewhere
+- **New code reads like it was written by the same author** as existing code in the package
+
+If ANY of these fail, the implementation must be refactored before proceeding.
+
+### 3. Internal consistency
 
 - Do changed files reference each other correctly? (imports, types, constants, names, versions)
 - Do paths, names, and versions match across all layers (schema → code → config → deploy)?
 - Are generated files fresh? (run code generation command then `git diff`)
 - Any typos in field names, log messages, or error strings?
 
-### 3. Build & lint verification
+### 4. Build & lint verification
 
 Execute each command and verify clean output:
 
@@ -862,7 +917,7 @@ Execute each command and verify clean output:
 
 Every command must exit 0 with no warnings. If any fails, fix it immediately.
 
-### 4. Test verification
+### 5. Test verification
 
 ```bash
 <REAL_UNIT_TEST_COMMAND>
@@ -873,7 +928,7 @@ For schema/contract changes, verify validation rules work:
 - Invalid inputs are rejected with correct error messages
 - Edge cases: empty strings, null/nil, zero values, missing required fields, boundary values
 
-### 5. Adversarial tests
+### 6. Adversarial tests
 
 Invent at least 5 tests that try to break the implementation. Think:
 
@@ -885,7 +940,7 @@ Invent at least 5 tests that try to break the implementation. Think:
 - Does the naming consistency chain hold across all layers?
 - What if this runs in a different environment than expected?
 
-### 6. Cross-file coherence
+### 7. Cross-file coherence
 
 For each new field or behavior:
 - Is it in the schema/contract definition?
