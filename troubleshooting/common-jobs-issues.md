@@ -143,3 +143,26 @@ See [Jobs E2E Testing Guide — Cross-Repository Dependencies](../guides/jobs-e2
 - `deploy/values/dev/values.yaml` — `asset_stack_job_task_version`
 - `deploy/values/nonprod/values.yaml` — `asset_stack_job_task_version`
 - `deploy/values/prod/values.yaml` — `asset_stack_job_task_version`
+
+---
+
+## 10. PAPI Client Pattern Mismatch (PR #650 Lesson)
+
+**Symptom**: PR review stalls or gets reworked because new PAPI/Profile API functionality was implemented as standalone functions instead of following existing patterns.
+
+**What happened**: In PR #650 (CSW owner information), we created:
+- `internal/profileapi/query_user.go` — a standalone function `GetUserEmailById(ctx, bearerToken, cwid)` that created its own `NewClient()` internally.
+- `internal/clients/profile.go` — custom Azure token caching (`getOrFetchAzureToken` with `sync.RWMutex`, global `azureTokenCache`, 50-min TTL).
+- `internal/profileapi/query_user_test.go` — tests using monkey-patching (`var PapiGetUserById = profilev3.GetUserById`).
+
+**What Tegan fixed**: Deleted all three items above and instead:
+- Added `GetUserEmailById` as a **method on `profileapi.Client`** in the existing `profile.go` file (following `IsUserOwnerOfApplication` pattern).
+- Used `buildPapiClient()` in `LookupUpnFromCwid()` — this already handles Azure token fetching internally, no custom cache needed.
+- Deleted the test file since the method-on-client pattern is testable via existing mock infrastructure.
+
+**Root Cause**: Not studying existing patterns in `internal/profileapi/profile.go` and `internal/clients/profile.go` before implementing. The `buildPapiClient()` function was already there and doing exactly what we hand-rolled.
+
+**Rule**: Before adding new PAPI functionality, always:
+1. Read `internal/profileapi/profile.go` — add methods to the existing `*Client` struct.
+2. Read `internal/clients/profile.go` — use `buildPapiClient()` for client construction.
+3. Never create standalone query files or custom token caching.

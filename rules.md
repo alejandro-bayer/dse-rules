@@ -283,6 +283,23 @@ var _ dsemgmtpbv1.DSEServer = (*Server)(nil)
 - `NewGRPCConn(ctx, host, port)` is the shared connection factory.
 - Error wrapping in client code uses `fmt.Errorf("...: %w", err)` (not `logger.NewError`).
 
+### PAPI / Profile API Client Pattern
+
+When adding new PAPI queries (user lookups, group queries, entitlement checks):
+
+1. **Add the GraphQL query** to `internal/profileapi/genqlient.graphql` and run `go generate`.
+2. **Add a method on `profileapi.Client`** in `internal/profileapi/profile.go` — NOT a standalone function in a new file. Follow the existing pattern:
+   ```go
+   func (c *Client) GetUserEmailById(ctx context.Context, cwid string) (string, error) {
+       logger, ctx := logv2.FromCtx(ctx)
+       resp, err := profilev3.GetUserById(ctx, c.g, cwid)
+       // ...
+   }
+   ```
+3. **Call it via `PapiClient.LookupUpnFromCwid()`** in `internal/clients/profile.go`, using `buildPapiClient()` to handle token/client setup — do NOT manually fetch Azure tokens or build custom caching.
+
+**Why**: `buildPapiClient()` already handles Azure token acquisition via `cloudv2.NewAzureTokenClient`. Custom caching with `sync.RWMutex` + global maps was tried and rejected in PR #650 — it duplicates existing infrastructure.
+
 ---
 
 ## Coding Standards
@@ -665,6 +682,25 @@ sudo ln -sf "$BROWSER" /usr/local/bin/xdg-open
 16. **Don't** add new terraform input variables to `buildAssetStackDeploymentInputs()` without also updating `dse-assetstacks` (assetstack.yaml) and `dse-terraform-modules` (variables.tf). The dsemgmt API will reject unknown inputs.
 17. **Don't** use simple logical implication (`!P || Q`) for conditional field validation in CEL when the inverse should also be enforced. Use bidirectional validation to prevent stale data.
 18. **Don't** assume old resources in the database have new enum fields populated — always default `UNSPECIFIED` to a safe value before using it in logic or external calls.
+19. **Don't** create standalone package-level functions for PAPI/Profile API calls — add methods to the existing `*Client` struct in the same package (e.g., `profileapi.Client.GetUserEmailById`). Follow the pattern of `IsUserOwnerOfApplication`, `QueryGroup`, etc. Standalone functions with separate `NewClient()` calls duplicate client setup and break testability.
+20. **Don't** build custom token caching for Azure/PAPI calls — use the existing `buildPapiClient()` helper in `internal/clients/profile.go`, which already handles token fetching and client construction. Rolling your own cache with `sync.RWMutex` + global maps is unnecessary complexity.
+21. **Don't** use `var FuncName = package.Function` for monkey-patching in tests — this is an anti-pattern. Instead, add methods to existing client structs so they can be mocked via interface injection or struct-based mocks (the established pattern).
+22. **Don't** create new files when the functionality belongs in an existing file — check if the package already has a client struct with similar methods before creating `query_*.go` files. For `profileapi`, all PAPI query methods belong on the `*Client` struct in `profile.go`.
+23. **Don't** start implementing before reading ALL existing files in the target package. If you're adding a method to `internal/foo/`, read every `.go` file in that directory first. Search for existing helpers with `grep -rn "func build\|func New" internal/clients/`. The #1 cause of PR rework is rebuilding infrastructure that already exists (see PR #650). This applies to every package, not just PAPI.
+
+### Regression Check for New Rules
+
+Every time you add a new anti-pattern, rule, or workflow step, run this mental simulation **before considering it done**:
+
+1. **Replay the original failure**: Walk through the exact scenario that caused the problem, step by step, as if the new rule already existed.
+2. **Would the rule have fired?** — At what step would the agent have encountered the rule? Would the rule's wording have been unambiguous enough to stop the bad behavior?
+3. **Is the rule generic enough?** — If the failure was in package X, would the rule also prevent the same class of error in package Y? If not, generalize it.
+4. **Is there a workflow enforcement point?** — A rule in the anti-patterns list is passive (the agent must remember to read it). A check in `start-ticket.md`, `implementation-checklist.md`, or `adversarial-audit.md` is active (the agent is forced to execute it). **Rules without enforcement points are suggestions, not protections.** Always pair a new rule with at least one workflow checkpoint.
+5. **Run the adversarial audit on your own changes** — treat rule/workflow edits with the same rigor as code edits. Ask: "Can I still fail despite this rule?" If yes, iterate.
+
+**Example (PR #650 post-mortem)**:
+- First attempt: Added rules 19-22 ("don't do X with PAPI"). Replay: agent starts new ticket touching `crestapi` → none of these rules fire → same failure. **Insufficient.**
+- Second attempt: Added Step 5 to `start-ticket.md` ("read all files before coding") + Phase 2 to adversarial audit ("pattern alignment check") + generic rule 23. Replay: agent starts any ticket → Step 5 forces `ls` + `grep` + `cat` of existing code → agent discovers existing helpers → writes method on existing struct. **Protected.**
 
 ---
 

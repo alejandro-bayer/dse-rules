@@ -56,7 +56,31 @@ Read the ticket description carefully. Identify:
 - **Cross-repo impact** — does this touch the deployment pipeline? (new terraform inputs → dse-assetstacks + dse-terraform-modules)
 - **Testing scope** — API-only? E2E through terraform worker? UI changes?
 
-### 5. Ask clarifying questions
+### 5. Study existing patterns (MANDATORY)
+
+Before writing any code, study the packages you're about to modify:
+
+```bash
+# 1. List all files in the target package
+ls -la internal/<domain>/
+
+# 2. Read the main files end-to-end — especially client structs and helper functions
+cat internal/<domain>/*.go | head -500
+
+# 3. Search for existing helpers that might already do what you need
+grep -rn "func " internal/<domain>/ | grep -i "<keyword>"
+grep -rn "func build" internal/clients/ # check for existing client builders
+```
+
+Answer these questions before proceeding:
+- **What structs already exist?** (e.g., `*Client`, `*Server`, `*Runner`) — new methods go on these, not in new files.
+- **What helper functions already exist?** (e.g., `buildPapiClient()`, `NewGRPCConn()`) — don't rebuild what exists.
+- **What patterns do similar features follow?** Find 2-3 existing implementations of similar functionality and note the pattern.
+- **Does the package use interfaces, struct methods, or standalone functions?** Match the existing style.
+
+If you skip this step and jump straight to coding, you WILL create duplicated infrastructure. This is the #1 cause of PR rework (see PR #650 post-mortem in troubleshooting docs).
+
+### 6. Ask clarifying questions
 
 Before writing any code, ask the user about anything unclear. Common questions:
 - "Does this new field need to flow to terraform? That requires coordinating dse-assetstacks and dse-terraform-modules."
@@ -64,7 +88,7 @@ Before writing any code, ask the user about anything unclear. Common questions:
 - "Is there an existing test job/model/app I should use for E2E testing, or create a new one?"
 - "Which environments need testing? (dev, nonprod, both)"
 
-### 6. Plan the implementation (Socratic analysis)
+### 7. Plan the implementation (Socratic analysis)
 
 For non-trivial tickets (anything beyond a single-file change), produce a written plan:
 
@@ -73,6 +97,7 @@ For non-trivial tickets (anything beyond a single-file change), produce a writte
 | **Scope** | What is in scope and what is explicitly out |
 | **Gap analysis** | Things the ticket doesn't mention but the codebase requires (e.g., svcconfig version bump, constants naming, backward compat for UNSPECIFIED) |
 | **Files to change** | Every file to create or modify, with a one-line description |
+| **Patterns to follow** | Existing functions/methods that implement similar features — cite the file and function name. New code must match these patterns. |
 | **Implementation order** | Sequence with dependencies (e.g., proto first → generate → Go logic → tests → deploy values) |
 | **Cross-repo changes** | Any changes needed in dse-assetstacks or dse-terraform-modules |
 | **Testing plan** | Which tests to write (unit, protovalidate) and which E2E scenarios to verify |
@@ -82,7 +107,7 @@ For non-trivial tickets (anything beyond a single-file change), produce a writte
 
 Present the plan to the user. **Wait for approval before writing code.**
 
-### 7. Begin implementation
+### 8. Begin implementation
 
 Once the plan is approved:
 1. Start with proto changes (if any) → `make generate`
@@ -101,6 +126,7 @@ Follow the implementation order from the plan. Mark progress using the todo list
 - Never commit to `main` directly — always use a feature branch
 - Never skip the planning step for multi-file changes
 - Never start coding before understanding cross-repo impact
+- **Never skip Step 5 (Study existing patterns)** — this is the #1 cause of PR rework. If the plan's "Patterns to follow" row is empty, the plan is incomplete. Reject it and go back to Step 5.
 - Always pull latest `main` before branching
 - If the ticket is ambiguous, ask — don't guess
 

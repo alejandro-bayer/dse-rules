@@ -38,14 +38,38 @@ git diff --name-only origin/main...HEAD
 
 Read each changed file completely. Understand what was added, modified, and removed.
 
-### 2. Internal consistency
+### 2. Pattern alignment (NEW — prevents PR #650-type failures)
+
+For each new file or function added, verify it follows existing patterns:
+
+```bash
+# For each new file: does a similar file already exist in the same package?
+ls internal/<package>/
+
+# For each new function: does the package use struct methods or standalone functions?
+grep -n "^func " internal/<package>/*.go | head -20
+grep -n "^func (" internal/<package>/*.go | head -20
+
+# For each new helper: does a similar helper already exist?
+grep -rn "func build\|func new\|func New" internal/clients/ | head -20
+```
+
+Check:
+- **No new files** when the functionality belongs in an existing file (e.g., don't create `query_user.go` when `profile.go` already has all similar methods)
+- **No standalone functions** when the package uses struct methods (e.g., `func GetX()` when everything else is `func (c *Client) GetX()`)
+- **No rebuilt infrastructure** — token caching, client builders, connection pooling — that already exists elsewhere
+- **New code reads like it was written by the same author** as existing code in the package
+
+If ANY of these fail, the implementation must be refactored before proceeding.
+
+### 3. Internal consistency
 
 - Do changed files reference each other correctly? (imports, constants, proto field names)
 - Do paths, names, and versions match across proto → Go → constants → deploy values?
 - Are generated files fresh? (`make generate` then `git diff`)
 - Any typos in field names, log messages, or error strings?
 
-### 3. Build & lint verification
+### 4. Build & lint verification
 
 Execute each command and verify clean output:
 
@@ -58,7 +82,7 @@ bash ./scripts/check-log-usage.sh
 
 Every command must exit 0 with no warnings. If any fails, fix it immediately.
 
-### 4. Test verification
+### 5. Test verification
 
 ```bash
 make unit-tests
@@ -69,7 +93,7 @@ For proto changes, verify validation rules work:
 - Invalid inputs are rejected with correct error messages
 - Edge cases: empty strings, UNSPECIFIED enums, missing required fields
 
-### 5. Adversarial tests
+### 6. Adversarial tests
 
 Invent at least 5 tests that try to break the implementation. Think:
 
@@ -80,7 +104,7 @@ Invent at least 5 tests that try to break the implementation. Think:
 - Are new constants actually used, or are they dead code?
 - Does the field naming chain hold? (proto → `.String()` → constant → terraform variable)
 
-### 6. Cross-file coherence
+### 7. Cross-file coherence
 
 For each new field or behavior:
 - Is it in the proto definition?

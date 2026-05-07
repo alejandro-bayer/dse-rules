@@ -49,6 +49,7 @@ bash ./scripts/check-log-usage.sh
 
 ### Architecture & Code
 
+- [ ] **Pattern alignment**: New code follows the same pattern as existing similar features in the codebase (verified by reading 2-3 analogous implementations). No new files created when the functionality belongs in an existing file. No standalone functions when the package uses struct methods.
 - [ ] Implementation matches the approved plan scope (no scope creep)
 - [ ] Proto definitions are the source of truth — `generated/` files NOT hand-edited
 - [ ] `internal/logging/v2` used for all new logging (never v1 or raw slog)
