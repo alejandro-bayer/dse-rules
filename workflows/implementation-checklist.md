@@ -72,6 +72,28 @@ bash ./scripts/check-log-usage.sh
 - [ ] Table-driven test pattern used where applicable
 - [ ] Tests pass: `make unit-tests`
 
+### Manual API Test Plan (mandatory for API changes)
+
+If the ticket touches API behavior (new fields, validation rules, enum values, endpoint changes), you **MUST** run the [Design Test Plan](design-test-plan.md) workflow before proceeding. This is not optional — reviewers will reject PRs without testing evidence.
+
+The workflow will:
+1. Analyze the diff to identify affected endpoints and behaviors
+2. Design test scenarios (happy path, defaults, validation, edge cases)
+3. Generate `auth curl` commands with real field names and values
+4. Create two files: detailed testing notes + PR-ready copy-paste version
+5. Execute the tests and record actual responses
+
+```
+→ Run: Design Test Plan workflow (design-test-plan.md)
+```
+
+- [ ] [Design Test Plan](design-test-plan.md) workflow completed
+- [ ] `testing-files/<ticket-id>-<feature>.md` created with actual test results
+- [ ] `testing-files/<ticket-id>-<feature>-PR.md` created (PR copy-paste version)
+- [ ] All test scenarios show PASS with real responses (no placeholders)
+
+**Skip condition**: Only skip if the change has ZERO API surface impact (internal refactor, config-only, docs-only). If in doubt, run it.
+
 ### Service Tester (mandatory)
 
 ```bash
@@ -85,10 +107,9 @@ make run-service-tester env=dev
 If the ticket modifies the deployment pipeline (new terraform inputs, assetstack version bumps, SQS message format changes):
 
 - [ ] Deployed to dev or nonprod
-- [ ] API-level tests: Create/Get resources with new fields, verify validation
+- [ ] API-level tests covered by the [Design Test Plan](design-test-plan.md) above
 - [ ] Terraform worker receives correct inputs (check CloudWatch logs)
 - [ ] Test evidence documented (see [Jobs E2E Testing Guide](../guides/jobs-e2e-testing.md))
-- [ ] Testing notes file created in `testing-files/` with actual curl commands and responses
 
 ### Documentation
 

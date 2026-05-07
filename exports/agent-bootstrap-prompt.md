@@ -105,6 +105,7 @@ Create the meta-repo at `<WORKSPACE_ROOT>/<project-name>-rules/` with this struc
 ├── workflows/
 │   ├── start-ticket.md                   # Pick up ticket → branch → plan
 │   ├── implementation-checklist.md       # Definition of Done before PR
+│   ├── design-test-plan.md               # Mandatory: design API test scenarios + generate curl commands
 │   ├── adversarial-audit.md              # Fix-and-recheck verification loop
 │   ├── create-pr.md                      # Commit → push → create PR
 │   └── review-pr.md                      # Review teammate PRs
@@ -156,6 +157,7 @@ After reading this file, you have access to the workflows listed below. **Do not
 |----------------------------|-------------------|
 | "I have ticket PROJ-123", "let's start this feature", "pick up this ticket", "empecemos con este feature" | [Start Ticket](workflows/start-ticket.md) |
 | "I'm done implementing", "is this ready?", "check my work", "ya terminé" | [Implementation Checklist](workflows/implementation-checklist.md) |
+| "design test plan", "generate curl commands", "create testing notes", "diseña las pruebas" | [Design Test Plan](workflows/design-test-plan.md) |
 | "audit this", "verify everything", "run the audit", "revisa que todo esté bien" | [Adversarial Audit](workflows/adversarial-audit.md) |
 | "create the PR", "push and open PR", "let's submit this", "crea el PR" | [Create PR](workflows/create-pr.md) |
 | "review this PR", "review PR #42", "check this pull request", "revisa este PR" | [Review PR](workflows/review-pr.md) |
@@ -191,6 +193,7 @@ A table linking to ALL files in the meta-repo. Update this table whenever a file
 |----------|-------------|
 | [Start Ticket](workflows/start-ticket.md) | Pick up a ticket → create branch → plan implementation |
 | [Implementation Checklist](workflows/implementation-checklist.md) | Definition of Done — all verification steps before creating a PR |
+| [Design Test Plan](workflows/design-test-plan.md) | **Mandatory** for API changes: design test scenarios, generate test commands, create testing notes files |
 | [Adversarial Audit](workflows/adversarial-audit.md) | Fix-and-recheck loop: prove the code works by trying to break it |
 | [Create PR](workflows/create-pr.md) | Commit, push, and create PR with required format and testing evidence |
 | [Review PR](workflows/review-pr.md) | Review a teammate's PR against coding standards |
@@ -542,6 +545,28 @@ cd <REAL_PROJECT_ROOT>
 - [ ] Tests follow project conventions (naming, patterns, tools)
 - [ ] Tests pass: `<REAL_TEST_COMMAND>`
 
+### Manual API Test Plan (mandatory for API changes)
+
+If the ticket touches API behavior (new fields, validation rules, enum values, endpoint changes), you **MUST** run the [Design Test Plan](design-test-plan.md) workflow. This is not optional — reviewers will reject PRs without testing evidence.
+
+The workflow will:
+1. Analyze the diff to identify affected endpoints and behaviors
+2. Design test scenarios (happy path, defaults, validation, edge cases)
+3. Generate test commands with real field names and values
+4. Create two files: detailed testing notes + PR-ready copy-paste version
+5. Execute the tests and record actual responses
+
+```
+→ Run: Design Test Plan workflow (design-test-plan.md)
+```
+
+- [ ] [Design Test Plan](design-test-plan.md) workflow completed
+- [ ] `testing-files/<ticket-id>-<feature>.md` created with actual test results
+- [ ] `testing-files/<ticket-id>-<feature>-PR.md` created (PR copy-paste version)
+- [ ] All test scenarios show PASS with real responses (no placeholders)
+
+**Skip condition**: Only skip if the change has ZERO API surface impact (internal refactor, config-only, docs-only).
+
 ### E2E / Service Tester (mandatory if available)
 
 ```bash
@@ -555,7 +580,7 @@ cd <REAL_PROJECT_ROOT>
 If the ticket modifies a deployment pipeline, message queue, or cross-service flow:
 
 - [ ] Deployed to a test environment
-- [ ] API-level tests: Create/Get resources with new fields, verify validation
+- [ ] API-level tests covered by the [Design Test Plan](design-test-plan.md) above
 - [ ] Downstream service receives correct inputs (check logs)
 - [ ] Test evidence documented in `testing-files/`
 
@@ -590,6 +615,186 @@ All checks passed. Adversarial audit clean. Ready for PR.
 ```
 
 → Proceed to [Create PR](create-pr.md)
+```
+
+---
+
+### FILE: `workflows/design-test-plan.md`
+
+```markdown
+# Design Test Plan
+
+**Mandatory workflow**. Run this after implementation is complete and before the adversarial audit. This workflow designs the manual API test scenarios, generates the test commands, and creates the testing notes files that go into the PR.
+
+**This is NOT optional** — reviewers will reject PRs without testing evidence. Every ticket that touches API behavior (new fields, validation rules, enum values, endpoint changes) requires a test plan.
+
+---
+
+## Input
+
+- **ticket-id**: Ticket ID (auto-detect from branch name if not provided)
+- **feature-name**: Short description (auto-detect from branch name if not provided)
+
+```bash
+cd <REAL_PROJECT_ROOT>
+BRANCH=$(git branch --show-current)
+# Extract ticket ID and feature name from branch
+```
+
+---
+
+## When to run this workflow
+
+| Change type | Test plan required? |
+|-------------|-------------------|
+| New schema field (enum, string, message) | **YES** — test CRUD with the new field |
+| New validation rule | **YES** — test valid + invalid + edge cases |
+| New endpoint or RPC | **YES** — test all operations |
+| New enum values | **YES** — test each value + default behavior |
+| Deployment pipeline changes | **YES** — test API + downstream payload |
+| Internal-only refactor (no API surface change) | **NO** — unit tests are sufficient |
+| Config/version bump only | **NO** — E2E tester is sufficient |
+| Documentation-only change | **NO** |
+
+---
+
+## Steps
+
+### 1. Identify what changed
+
+```bash
+git diff --name-only origin/main...HEAD
+```
+
+Read each changed file. Determine:
+- Which API endpoints are affected
+- What new fields or behaviors were added
+- What validation rules were added or changed
+- Whether changes flow to downstream workers/services
+
+### 2. Determine the test environment
+
+Ask the user: **"Is the branch deployed to a test environment? If not, deploy it first."**
+
+### 3. Identify auth prerequisites
+
+Document how to authenticate for the tests. Include the exact commands in the test plan.
+
+### 4. Design test scenarios
+
+For each changed behavior, create test scenarios covering:
+
+#### Required scenarios (always include):
+
+| Category | What to test |
+|----------|-------------|
+| **Happy path** | Create with the new field explicitly set → verify it appears in the response |
+| **Default behavior** | Create WITHOUT the new field → verify default value is applied correctly |
+| **Get round-trip** | Create → Get → verify all new fields survive the round-trip |
+| **List round-trip** | Create → List → verify new fields appear in list responses |
+| **Validation: valid input** | Send valid values for each new validation rule → verify success |
+| **Validation: invalid input** | Send invalid values → verify correct error code and message |
+
+#### Conditional scenarios (include when applicable):
+
+| Category | When to include | What to test |
+|----------|----------------|-------------|
+| **Enum values** | New enum field | Test EACH non-default value individually |
+| **Default value** | New enum field | Omit the field → verify it defaults to the safe value |
+| **Cross-field validation** | Conditional rules | Test all cells of the truth table |
+| **Update / field mask** | Field is updatable | Update only the new field → verify other fields unchanged |
+| **Backward compatibility** | Existing records in DB | Get an OLD resource → verify default value is handled |
+| **Pipeline flow** | Downstream processing | Create → Deploy → check logs for correct downstream payload |
+| **Idempotency** | Create/Update endpoint | Send the same request twice → verify no duplicate or error |
+
+### 5. Generate the detailed testing notes file
+
+Create the file at: `testing-files/<ticket-id>-<feature-name>.md`
+
+Structure:
+
+```markdown
+# Testing Notes — <Feature Name> (PR #<NUMBER>)
+
+<One sentence describing what these tests verify.>
+
+## Prerequisites
+
+1. Branch `<branch-name>` deployed to **<environment>**.
+2. Authenticated via <AUTH_METHOD>.
+
+## Environment
+
+- **Base URL**: `<ENVIRONMENT_URL>`
+
+---
+
+## Test 1: <Scenario name>
+
+<One sentence describing the purpose.>
+
+```bash
+<actual test command with real field names and values from the schema>
+```
+
+**Expected**: `<HTTP status>`, `<key fields in response>`
+
+**Actual Result**:
+```json
+<paste actual response here after executing>
+```
+
+**Result**: ✅ PASS / ❌ FAIL
+
+---
+
+(repeat for each test)
+
+---
+
+## Summary
+
+| # | Scenario | Result |
+|---|----------|--------|
+| 1 | <name> | ✅ / ❌ |
+```
+
+### 6. Generate the PR-ready version
+
+Create a second file at: `testing-files/<ticket-id>-<feature-name>-PR.md`
+
+This is a **condensed copy-paste version** for the PR's testing section:
+- No auth prerequisites (PR readers already know)
+- Each test collapsed in a `<details>` block
+- Actual responses included inline
+- Summary table at the end
+
+### 7. Execute the tests
+
+1. Ask the user to run each test command and paste the response
+2. Or run the commands directly if authenticated in the terminal
+3. Fill in actual responses in both files
+4. Mark each test as PASS or FAIL
+5. If any test FAILS → fix the code → re-run the [Adversarial Audit](adversarial-audit.md) → re-run the failing test
+
+### 8. Verify completeness
+
+- [ ] Every new/changed API behavior has at least one test scenario
+- [ ] Every new validation rule has both a valid and invalid test
+- [ ] Every new enum value has its own test
+- [ ] Default behavior is tested
+- [ ] Both files exist: detailed + PR-ready
+- [ ] All tests show PASS with actual responses (no placeholders)
+
+---
+
+## Output
+
+Two files created and populated with actual test results:
+1. `testing-files/<ticket-id>-<feature>.md` — detailed version
+2. `testing-files/<ticket-id>-<feature>-PR.md` — PR-ready version
+
+→ Return to [Implementation Checklist](implementation-checklist.md) to continue with the adversarial audit.
 ```
 
 ---

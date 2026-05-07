@@ -13,6 +13,7 @@ After reading this file, you have access to the workflows listed below. **Do not
 | "Tengo el ticket D3P-2068", "empecemos con este feature", "pick up this ticket" | [Start Ticket](workflows/start-ticket.md) |
 | "ya terminé de implementar", "is this ready?", "check my work" | [Implementation Checklist](workflows/implementation-checklist.md) |
 | "revisa que todo esté bien", "audit this", "run the audit" | [Adversarial Audit](workflows/adversarial-audit.md) |
+| "diseña las pruebas", "test plan", "generate curl commands", "create testing notes" | [Design Test Plan](workflows/design-test-plan.md) |
 | "crea el PR", "push and create PR", "let's open a PR" | [Create PR](workflows/create-pr.md) |
 | "revisa este PR", "review PR #650", "check this pull request" | [Review PR](workflows/review-pr.md) |
 
@@ -57,6 +58,7 @@ This repo contains additional guides, troubleshooting docs, and test evidence or
 |----------|-------------|
 | [Start Ticket](workflows/start-ticket.md) | Pick up an Aha! ticket: create branch, understand requirements, plan implementation |
 | [Implementation Checklist](workflows/implementation-checklist.md) | Definition of Done — all verification steps before creating a PR |
+| [Design Test Plan](workflows/design-test-plan.md) | **Mandatory** for API changes: design test scenarios, generate `auth curl` commands, create testing notes files |
 | [Adversarial Audit](workflows/adversarial-audit.md) | Fix-and-recheck loop: prove the code works by trying to break it. Runs until zero issues. |
 | [Create PR](workflows/create-pr.md) | Commit, push, and create a PR with the team's required format and testing evidence |
 | [Review PR](workflows/review-pr.md) | Review a teammate's PR against ticket requirements and coding standards |
@@ -566,7 +568,9 @@ git checkout -b fix/<bug-description>       # Bug fixes
 
 ### Manual API Testing Notes
 
-When a ticket involves new or changed API behavior (new fields, validation rules, enum values, etc.), create a testing notes file in `testdata/api-calls/` with auth prerequisites, one section per test scenario (`auth curl` command + expected response + screenshot placeholder).
+When a ticket involves new or changed API behavior (new fields, validation rules, enum values, etc.), the [Design Test Plan](workflows/design-test-plan.md) workflow is **mandatory**. It generates two files in `testing-files/`:
+1. `<ticket-id>-<feature>.md` — detailed testing notes with auth prerequisites, `auth curl` commands, and actual responses
+2. `<ticket-id>-<feature>-PR.md` — condensed PR-ready version for copy-paste into the PR
 
 Not every ticket requires this — use judgment. If the change only affects internal logic with no API surface impact, unit tests alone are sufficient.
 
