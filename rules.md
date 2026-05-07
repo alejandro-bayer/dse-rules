@@ -945,6 +945,37 @@ aws logs get-query-results --profile nonprod --region us-east-1 \
 
 ---
 
+## Git Push — Multi-Repo Workspace
+
+This workspace contains multiple repos. The codespace GITHUB_TOKEN only has push permissions for `bayer-int/dse-apis`.
+
+### For `dse-apis` (main workspace repo)
+
+Use normal git push:
+```bash
+cd /workspaces/dse-apis
+git push origin <branch>
+```
+
+### For other repos (e.g., `dse-rules`)
+
+The codespace token does NOT have push access to personal or external repos. Use a PAT in the URL:
+
+```bash
+cd /workspaces/dse-rules
+git push https://<PAT>@github.com/alejandro-bayer/dse-rules.git main
+```
+
+**Procedure:**
+1. Try normal `git push origin main` first.
+2. If it returns 403 / "Permission denied", ask the user for a Personal Access Token (PAT) with `repo` scope.
+3. Use the PAT in the URL as shown above.
+4. If the PAT fails (expired or revoked), ask for a new one — do not retry the same token.
+
+> **Security**: Never store the PAT in a file. It's acceptable in the terminal command since codespace history is ephemeral. Remind the user to revoke the token after use if they're concerned.
+
+---
+
 ## Key Conventions Summary
 
 1. **Readability, simplicity, and maintainability** are the top priorities.
