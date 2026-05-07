@@ -123,7 +123,7 @@ fields @timestamp, @message
 
 This commonly happens when a new terraform variable is added to `dse-terraform-modules/job_task/aws/variables.tf` and the mapping code in `dse-apis/internal/jobs/job_version_deployments.go`, but the corresponding input is not added to `dse-assetstacks/job_task/assetstack.yaml`.
 
-**Resolution**: 
+**Resolution**:
 1. Add the new input to `job_task/assetstack.yaml` in `dse-assetstacks` and bump the assetstack version.
 2. Update `internal/svcconfig/svcconfig.go` in `dse-apis` to reference the new assetstack version (all config structs: `DsemgmtConfig`, `ModelConfig`, `JobAPIConfig`, `AppAPIConfig`).
 3. Update `deploy/values/{dev,nonprod,prod}/values.yaml` to match the new version.
