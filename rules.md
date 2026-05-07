@@ -4,6 +4,36 @@ You are an expert in Go, gRPC, Protocol Buffers, AWS services, and microservices
 
 ---
 
+## Related Documentation
+
+This repo contains additional guides, troubleshooting docs, and test evidence organized by topic. Consult these when working on specific domains:
+
+### Guides
+
+| Guide | Description |
+|-------|-------------|
+| [Job Playbook](guides/job_playbook.md) | Job registration, versioning, deployment lifecycle, and FAQ |
+| [Jobs E2E Testing](guides/jobs-e2e-testing.md) | Step-by-step manual E2E testing of the full Jobs pipeline (Job → Version → Deployment → Approve → Terraform Worker), including cross-repo dependency coordination with `dse-assetstacks` and `dse-terraform-modules` |
+| [App Playbook](guides/App_playbook.md) | App registration, deployment, access management, and FAQ |
+| [Model Playbook](guides/Model_Playbook.md) | Model development, registration, deployment, and invocation |
+| [CREST Authorization](guides/crest_authorization.md) | How CREST gateway auth works, entitlement identifiers, the 3-layer auth flow (CREST → App Code → PAPI), and Velocity UI management |
+
+### Troubleshooting
+
+| Document | Description |
+|----------|-------------|
+| [Common Jobs Issues](troubleshooting/common-jobs-issues.md) | Known issues: CREST 403s, underscore naming, skip_papi limitations, orphaned PAPI apps, CloudWatch log format, cross-env artifact mismatches, assetstack input validation errors, svcconfig version mismatches |
+
+### Test Evidence (PR-specific)
+
+| Document | PR | Description |
+|----------|----|-------------|
+| [d3p-2068-job-type-PR.md](testing-files/d3p-2068-job-type-PR.md) | [#634](https://github.com/bayer-int/dse-apis/pull/634) | `job_type` field — copy-paste ready test evidence for PR comment |
+| [d3p-2068-job-type.md](testing-files/d3p-2068-job-type.md) | [#634](https://github.com/bayer-int/dse-apis/pull/634) | `job_type` field — detailed testing notes with screenshots |
+| [d3p-2140-update-csw-call.md](testing-files/d3p-2140-update-csw-call.md) | [#650](https://github.com/bayer-int/dse-apis/pull/650) | CSW owner information — testing notes for the CSW provisioning call update |
+
+---
+
 ## Business Context
 
 ### What Is DSE?
@@ -584,6 +614,42 @@ auth curl -X POST https://apis.dse-dev.bayer.com/v1/resources ...
 
 Not every ticket requires this — use judgment. If the change only affects internal logic with no API surface impact, unit tests alone are sufficient.
 
+For **Jobs E2E testing** specifically (full pipeline through terraform worker), see [Jobs E2E Testing Guide](guides/jobs-e2e-testing.md). For known issues encountered during manual testing, see [Common Jobs Issues](troubleshooting/common-jobs-issues.md).
+
+### Code Review — How to Respond
+
+When reviewers suggest changes, these patterns help communicate effectively:
+
+- **Reviewer suggests a "simpler" expression**: Write the truth table showing edge cases where their suggestion breaks. Example: `== &&` vs `!= ||` in CEL — show that one breaks STANDARD jobs.
+- **Reviewer suggests renaming a field**: If the name is constrained across repos, explain the chain (proto → constant → terraform variable) and link to the files in the other repos.
+- **Reviewer asks for testing evidence**: Provide it proactively next time. Include API responses AND downstream worker logs for pipeline features.
+- **Reviewer adds code after your approval**: Common pattern — Pedro adds server-side validations, Ryan tightens proto annotations, Carlos enforces naming. Review their commits to understand team conventions.
+
+### Team Review Tendencies
+
+| Reviewer | Focus Area |
+|----------|-----------|
+| ekraft-bayer | Field naming accuracy, terraform alignment |
+| pedro-vallejo-bayer | Functional testing evidence, server-side validations (e.g., referential integrity) |
+| carloslucio-bayer | E2E testing evidence, naming conventions (Key suffix), deployment-level verification |
+| ryan-price2 | Proto annotation strictness (bidirectional CEL), code correctness |
+| maddyst-bayer | API readability, SDK consumer perspective |
+
+### Dev Container Tools
+
+These tools are available in the dev container and needed for testing/development:
+
+| Tool | Path / Install | Purpose |
+|------|---------------|---------|
+| `auth` | `/workspaces/dse-apis/.mise/installs/go-github-com-bayer-int-csgda-auth-cmd-auth/latest/bin/auth` | Bayer SSO auth CLI (`auth login`, `auth curl`, `auth print-access-token`) |
+| `aws` | `/workspaces/dse-apis/.mise/installs/aws/2.34.24/aws/dist/aws` | AWS CLI for SSO, CloudWatch logs, S3 |
+| `gh` | `apt install gh` (not pre-installed) | GitHub CLI for PR info, API calls |
+
+**Codespaces tip**: If `auth login` fails with `xdg-open not found`:
+```bash
+sudo ln -sf "$BROWSER" /usr/local/bin/xdg-open
+```
+
 ---
 
 ## Linting & Formatting
@@ -656,6 +722,133 @@ Not every ticket requires this — use judgment. If the change only affects inte
 12. **Don't** use `internal/clients` v1 for new inter-service calls — use `clients/v2`.
 13. **Don't** hand-write GraphQL query strings or response structs — use `genqlient` to generate type-safe client code. Older files like `query_group.go` predate this pattern and should not be used as a reference.
 14. **Don't** use magic numbers in CEL expressions for enum comparisons — use fully qualified enum names (e.g., `dse.jobs.v1.JobType.TRAINING` not `2`).
+15. **Don't** rename fields for readability if they are shared across repos (proto → constants → terraform variables). Document the cross-repo constraint instead.
+16. **Don't** add new terraform input variables to `buildAssetStackDeploymentInputs()` without also updating `dse-assetstacks` (assetstack.yaml) and `dse-terraform-modules` (variables.tf). The dsemgmt API will reject unknown inputs.
+17. **Don't** use simple logical implication (`!P || Q`) for conditional field validation in CEL when the inverse should also be enforced. Use bidirectional validation to prevent stale data.
+18. **Don't** assume old resources in the database have new enum fields populated — always default `UNSPECIFIED` to a safe value before using it in logic or external calls.
+
+---
+
+## Cross-Repo Coordination
+
+### The AssetStack Pipeline
+
+When a feature adds new fields that flow through the deployment pipeline, **all three repos must be coordinated**:
+
+| Repo | What to change | Example |
+|------|---------------|---------|
+| `dse-apis` | Proto definition, Go deployment logic, constants, svcconfig version | Add field to proto, pass it in `buildAssetStackDeploymentInputs()` |
+| `dse-assetstacks` | `job_task/assetstack.yaml` (or equivalent asset type) | Add new input variables, bump version tag |
+| `dse-terraform-modules` | `job_task/aws/variables.tf` + `main.tf` | Define terraform variable + use it |
+
+**Critical rule**: The `AssetStackJobTaskVersion` in `svcconfig.go` (and all `deploy/values/*/values.yaml`) **must match** the git tag in `dse-assetstacks`. If you bump the assetstack version, update it in all 4 places (svcconfig struct default + 3 environment values files).
+
+### Field Naming Across Repos
+
+When a field flows from proto → Go constants → terraform inputs → terraform variables:
+- The **constant name** in `internal/assetstackdeployments/constants.go` must match the terraform variable name in `dse-terraform-modules` (e.g., `model_name`, `version_bump`).
+- Constants that represent terraform input keys use the `Key` suffix convention (e.g., `JobTypeKey`, `ModelNameKey`, `VersionBumpKey`).
+- **Do not rename** fields for "readability" in one repo if it would break the name chain across repos. Document why the name is what it is.
+
+### Backward Compatibility for Enum Fields
+
+When adding a new enum field to an existing resource:
+1. **Default UNSPECIFIED to a safe value** in `CreateX()` — resources created before the field existed will have the zero value stored.
+2. **Default UNSPECIFIED before external calls** (e.g., in `buildAssetStackDeploymentInputs`) — legacy resources read from DB will have UNSPECIFIED.
+3. Mark the defaulting with a `// TODO:` explaining why it's not `required` yet and when it can become required.
+
+```go
+// In CreateJob — default for new resources
+if job.GetJobType() == jobspbv1.JobType_JOB_TYPE_UNSPECIFIED {
+    job.JobType = jobspbv1.JobType_STANDARD
+}
+
+// In buildAssetStackDeploymentInputs — default for legacy resources from DB
+jobType := job.GetJobType()
+if jobType == jobspbv1.JobType_JOB_TYPE_UNSPECIFIED {
+    jobType = jobspbv1.JobType_STANDARD
+}
+```
+
+---
+
+## CEL Cross-Field Validation Patterns
+
+### Bidirectional Validation (Recommended)
+
+When field B is required only when field A has a specific value, use **bidirectional** CEL validation — this enforces that B is set when needed AND absent when not applicable:
+
+```protobuf
+option (buf.validate.message).cel = {
+  id: "training-requires-model-name"
+  message: "model_name is required when TRAINING, and cannot be set otherwise"
+  expression: "(this.job_type == dse.jobs.v1.JobType.TRAINING && has(this.model_name)) || (this.job_type != dse.jobs.v1.JobType.TRAINING && !has(this.model_name))"
+};
+```
+
+This is stricter than simple logical implication (`!P || Q`) because it prevents stale/invalid data on non-applicable cases.
+
+### Truth Table
+
+| job_type | model_name set | `!P \|\| Q` (permissive) | bidirectional (strict) |
+|----------|---------------|--------------------------|------------------------|
+| TRAINING | yes | PASS | PASS |
+| TRAINING | no | FAIL | FAIL |
+| STANDARD | yes | PASS (leaks data) | FAIL (catches error) |
+| STANDARD | no | PASS | PASS |
+
+### Use `has()` for Presence Checks
+
+For string fields, prefer `has(this.field)` over `this.field != ''` in CEL expressions. `has()` checks proto field presence correctly and is more idiomatic for proto3.
+
+---
+
+## Server-Side Referential Validation
+
+When a field references another resource (e.g., `model_name` pointing to a model), validate that the referenced resource **exists** before persisting:
+
+```go
+func (s *Server) validateTrainingModelExists(ctx context.Context, job *jobspbv1.Job) error {
+    if job.GetJobType() != jobsbv1.JobType_TRAINING {
+        return nil // no-op for non-training jobs
+    }
+    // gRPC call to Models API to verify model exists
+    _, err = modelsClient.Client.GetModel(ctx, &modelspbv1.GetModelRequest{Name: job.GetModelName()})
+    if err != nil {
+        return logger.NewError(fmt.Sprintf("model %s does not exist", job.GetModelName()), err)
+    }
+    return nil
+}
+```
+
+**Rules:**
+- Guard with an early return for non-applicable cases (e.g., non-TRAINING jobs).
+- Use `clients/v2` to call the target service.
+- Wire the target service host as a config variable (e.g., `ModelsAPIHost`) and add it to Helm configmap.
+- This validation belongs in `CreateX()` / `UpdateX()` handlers, NOT in proto annotations (proto can't do gRPC calls).
+
+---
+
+## E2E Testing for Pipeline Features
+
+Any ticket that modifies the deployment pipeline (new terraform inputs, assetstack version bumps, SQS message format changes) **requires E2E testing** before PR approval. This is not optional.
+
+### What Reviewers Will Ask For
+
+1. API-level tests: Create/Get resources with new fields, verify validation.
+2. **Terraform worker receives correct inputs**: Deploy a job version and verify the SQS message or terraform worker logs show the new variables.
+3. Cross-repo coordination proof: Show that the assetstack version is bumped and the terraform module accepts the new inputs.
+
+### Pipeline Verification Flow
+
+```
+Create Job → Create Version → Create Deployment → Approve Deployment
+  → Check AssetStack Worker logs (SQS payload)
+  → Check dsemgmt API (new AssetStackDeployment record)
+  → Check Terraform Worker logs (terraform inputs received)
+```
+
+See [Jobs E2E Testing Guide](guides/jobs-e2e-testing.md) for the full step-by-step process.
 
 ---
 
@@ -674,6 +867,81 @@ go build ./...
 - **`go build ./...`** — Verifies the entire module compiles cleanly.
 
 If any of these fail, fix the issues before committing or opening a PR. These are the same gates enforced by CI, so catching failures locally saves time.
+
+---
+
+## AWS Access (SSO / IAM Identity Center)
+
+To access AWS resources (CloudWatch logs, S3, ECR, etc.), use **AWS SSO** with the Bayer Identity Center.
+
+### Initial Setup
+
+La configuración ya existe en `~/.aws/config`. Los perfiles usan una sesión SSO compartida llamada `dse`:
+
+| SSO Session | `dse` |
+|-------------|-------|
+| SSO start URL | `https://bayer-prod.awsapps.com/start` |
+| SSO region | `us-east-1` |
+| SSO registration scopes | `sso:account:access` |
+
+**Perfiles disponibles**:
+
+| Profile | Account ID | Description |
+|---------|------------|-------------|
+| `dev` | `980921718484` | Dev environment |
+| `nonprod` | `111166164941` | NonProd environment |
+| `functional-dev` | `341224122507` | Functional dev account |
+| `functional-nonprod` | `038462751056` | Functional nonprod account |
+
+All profiles use role `sso-standard-user`, region `us-east-1`, output `json`.
+
+Si necesitas configurar desde cero:
+
+```bash
+aws configure sso --profile nonprod
+```
+
+### Login (each time session expires)
+
+```bash
+aws sso login --profile nonprod
+```
+
+### Usage
+
+Every command needs `--profile nonprod`, or export it:
+
+```bash
+export AWS_PROFILE=nonprod
+```
+
+### CloudWatch Logs
+
+**Log groups (nonprod)**:
+
+| Component | Log Group |
+|-----------|-----------|
+| Jobs API | `/platform-nonprod-use1-eks/jobs` |
+| dsemgmt API | `/platform-nonprod-use1-eks/dsemgmt` |
+| Workers (terraform, imgbuild, assetstack) | `/platform-nonprod-use1-eks/workers` |
+
+**Important**: Logs in nonprod are JSON-wrapped — the `log` field contains a stringified JSON. Fields like `data.msg` are NOT top-level queryable. Use `@message like /keyword/` instead.
+
+**Example query**:
+
+```bash
+aws logs start-query --profile nonprod --region us-east-1 \
+  --log-group-name "/platform-nonprod-use1-eks/workers" \
+  --start-time $(date -d '1 hour ago' +%s) \
+  --end-time $(date +%s) \
+  --query-string 'filter @message like /terraform/ | sort @timestamp desc | limit 20'
+
+# Get results with the returned queryId:
+aws logs get-query-results --profile nonprod --region us-east-1 \
+  --query-id "QUERY_ID_HERE"
+```
+
+**Session expiry**: If commands return error 253 or "expired token", run `aws sso login --profile nonprod` again.
 
 ---
 
