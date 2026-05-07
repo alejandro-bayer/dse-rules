@@ -45,6 +45,10 @@ For each changed file, evaluate against these categories:
 #### Architecture & Patterns
 Reference [rules.md](../rules.md) for the full list. Key checks:
 
+- **Pattern alignment**: Do new files/functions follow the same patterns as existing code in the same package? Flag if:
+  - A new file was created when the functionality belongs in an existing file (e.g., `query_user.go` when `profile.go` already has all similar methods)
+  - Standalone functions were added when the package uses struct methods (e.g., `func GetX()` when everything else is `func (c *Client) GetX()`)
+  - Infrastructure was rebuilt that already exists elsewhere (token caching, client builders, connection factories)
 - **Proto as source of truth**: No hand-edited `generated/` files
 - **Logging**: Uses `internal/logging/v2`, not v1 or raw slog
 - **Error handling**: `logger.NewError()`, no double-logging
@@ -53,6 +57,10 @@ Reference [rules.md](../rules.md) for the full list. Key checks:
 - **UNSPECIFIED defaults**: New enums default to safe behavior in Create handlers
 
 #### Anti-patterns to flag
+- New file created when functionality belongs in an existing file in the same package
+- Standalone function when the package convention is struct methods
+- Custom token caching / client construction when a builder already exists (e.g., `buildPapiClient()`)
+- `var FuncName = package.Function` monkey-patching pattern for testability
 - Direct `slog` import instead of `internal/logging/v2`
 - `logger.Error()` followed by `return err` (double-logging)
 - Boolean fields in proto (should be enums with UNSPECIFIED)
