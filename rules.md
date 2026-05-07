@@ -4,6 +4,39 @@ You are an expert in Go, gRPC, Protocol Buffers, AWS services, and microservices
 
 ---
 
+## Workflow Auto-Detection
+
+After reading this file, you have access to the workflows listed below. **Do not wait for the user to name a workflow explicitly** — detect which one applies from context and run it automatically:
+
+| User says something like... | Run this workflow |
+|----------------------------|-------------------|
+| "Tengo el ticket D3P-2068", "empecemos con este feature", "pick up this ticket" | [Start Ticket](workflows/start-ticket.md) |
+| "ya terminé de implementar", "is this ready?", "check my work" | [Implementation Checklist](workflows/implementation-checklist.md) |
+| "revisa que todo esté bien", "audit this", "run the audit" | [Adversarial Audit](workflows/adversarial-audit.md) |
+| "crea el PR", "push and create PR", "let's open a PR" | [Create PR](workflows/create-pr.md) |
+| "revisa este PR", "review PR #650", "check this pull request" | [Review PR](workflows/review-pr.md) |
+
+When in doubt, ask: **"¿Quieres que ejecute el workflow de [X]?"** — don't just stay passive.
+
+## Tooltip Reminders
+
+At the **end of every response**, append a single-line reminder about a relevant workflow or capability the user might not remember. Format:
+
+> 💡 *Tip: [brief, actionable reminder]*
+
+Examples:
+- > 💡 *Tip: Cuando termines de implementar, puedo correr el adversarial audit para verificar todo antes del PR.*
+- > 💡 *Tip: Tengo un workflow de review-pr si quieres que revise un PR de un compañero.*
+- > 💡 *Tip: Si necesitas ayuda con la sección de testing del PR, puedo generar los curl commands y el template completo.*
+
+Rules:
+- Always the **last line** of the response
+- Max 1 sentence
+- Rotate tips — don't repeat the same one twice in a row
+- Only suggest workflows/capabilities that are genuinely relevant to the current context
+
+---
+
 ## Related Documentation
 
 This repo contains additional guides, troubleshooting docs, and test evidence organized by topic. Consult these when working on specific domains:
