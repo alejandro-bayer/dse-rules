@@ -18,8 +18,9 @@ These are designed to be followed sequentially for a typical ticket:
 
 1. **[Start Ticket](workflows/start-ticket.md)** — Pick up an Aha! ticket, create branch, plan implementation
 2. **[Implementation Checklist](workflows/implementation-checklist.md)** — Definition of Done before creating a PR
-3. **[Create PR](workflows/create-pr.md)** — Commit, push, create PR with required format
-4. **[Review PR](workflows/review-pr.md)** — Review a teammate's PR against coding standards
+3. **[Adversarial Audit](workflows/adversarial-audit.md)** — Fix-and-recheck loop until zero issues (called from checklist + PR iterations)
+4. **[Create PR](workflows/create-pr.md)** — Commit, push, create PR with required format
+5. **[Review PR](workflows/review-pr.md)** — Review a teammate's PR against coding standards
 
 ## Usage
 

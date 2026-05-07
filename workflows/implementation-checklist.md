@@ -101,13 +101,23 @@ If the ticket modifies the deployment pipeline (new terraform inputs, assetstack
 - [ ] No merge conflicts with main: `git fetch origin && git diff --stat origin/main...HEAD`
 - [ ] Branch is up to date with main: `git merge origin/main` (resolve conflicts if any)
 
+### Adversarial Audit Loop
+
+Run the [Adversarial Audit](adversarial-audit.md) on all changed files. This is a **fix-and-recheck loop**:
+
+1. Run the full adversarial audit
+2. If ANY issues found → fix them → re-run the audit from step 1
+3. Only proceed when the audit reports **zero issues**
+
+- [ ] Adversarial audit passed with zero issues
+
 ---
 
 ## Output
 
-When all items pass:
+When all items pass (including adversarial audit):
 ```
-All checks passed. Ready for PR.
+All checks passed. Adversarial audit clean. Ready for PR.
 ```
 
 Next step: run the [Create PR](create-pr.md) workflow.

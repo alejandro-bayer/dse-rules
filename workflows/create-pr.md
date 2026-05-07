@@ -228,8 +228,10 @@ After reviewers leave comments:
    - **A valid fix** → implement it
    - **A misunderstanding** → explain with evidence (truth tables, cross-repo constraints, etc.)
    - **An enhancement beyond scope** → suggest a follow-up ticket
-3. After making changes, push and reply to each comment thread
-4. Re-run `make ci` and `go build ./...` after changes
+3. After making changes, run the [Adversarial Audit](adversarial-audit.md) loop:
+   - Run audit → fix issues → re-run until zero issues
+   - This replaces manual `make ci` / `go build` checks — the audit covers them and more
+4. Push and reply to each comment thread
 5. If new tests are needed, add them and update the testing section of the PR
 
 ### Common reviewer patterns to anticipate

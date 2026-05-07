@@ -24,6 +24,7 @@ This repo contains additional guides, troubleshooting docs, and test evidence or
 |----------|-------------|
 | [Start Ticket](workflows/start-ticket.md) | Pick up an Aha! ticket: create branch, understand requirements, plan implementation |
 | [Implementation Checklist](workflows/implementation-checklist.md) | Definition of Done — all verification steps before creating a PR |
+| [Adversarial Audit](workflows/adversarial-audit.md) | Fix-and-recheck loop: prove the code works by trying to break it. Runs until zero issues. |
 | [Create PR](workflows/create-pr.md) | Commit, push, and create a PR with the team's required format and testing evidence |
 | [Review PR](workflows/review-pr.md) | Review a teammate's PR against ticket requirements and coding standards |
 

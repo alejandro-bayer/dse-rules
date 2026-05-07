@@ -108,4 +108,6 @@ Follow the implementation order from the plan. Mark progress using the todo list
 
 ## Next step
 
-When implementation is complete, run the [Implementation Checklist](implementation-checklist.md) to verify everything before creating a PR.
+When implementation is complete:
+1. Run the [Implementation Checklist](implementation-checklist.md) to verify everything
+2. The checklist includes an [Adversarial Audit](adversarial-audit.md) loop — it must pass with zero issues before creating a PR
