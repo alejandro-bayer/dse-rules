@@ -66,16 +66,7 @@ Tenant (organizational unit, e.g. a team)
 
 ### External Integrations
 
-- **AWS** (extensive): DynamoDB, SQS, SNS, S3, SageMaker, ECR, ECS, IAM, STS, SSO Admin, SSM, Secrets Manager, Route53, CloudWatch, Athena, EventBridge
-- **Azure AD / Entra ID**: Corporate identity provider (JWT-based auth)
-- **GCP (CSW)**: Crop Science Warehouse project provisioning
-- **PAPI (Profile API)**: Bayer group/entitlement management
-- **CREST API**: Client restrictions
-- **IT4You / ServiceNow**: AWS account vending via RITM tickets
-- **BEAT**: Bayer Enterprise Architecture Tool (application registry)
-- **Microsoft Graph API**: User/group directory queries
-- **Enterprise Data Hub (EDH)**: Kafka-based data streaming
-- **Velocity Messaging**: Bayer notification service
+AWS (DynamoDB, SQS, SNS, S3, SageMaker, ECR, ECS, IAM, STS, SSO Admin, SSM, Secrets Manager, Route53, CloudWatch, Athena, EventBridge), Azure AD / Entra ID (JWT auth), GCP/CSW (project provisioning), PAPI (group/entitlement management), CREST (client restrictions), IT4You/ServiceNow (AWS account vending), BEAT (application registry), Microsoft Graph (user/group queries), EDH (Kafka streaming), Velocity Messaging (notifications).
 
 ### Common Acronyms
 
@@ -92,14 +83,7 @@ Tenant (organizational unit, e.g. a team)
 | BEAT | Bayer Enterprise Architecture Tool; BEAT ID is a unique application identifier |
 | CWID | Corporate Worker ID (Bayer employee identifier) |
 
----
-
-## General Responsibilities
-
-- Guide the development of idiomatic, maintainable, and high-performance Go code.
-- Enforce modular design and separation of concerns through the patterns established in this monorepo.
-- Promote the three-tier testing strategy (unit, integration, E2E), robust observability via structured logging, and scalable service patterns.
-- When conflicts arise between external style guides and the internal CONTRIBUTING.md or copilot_instructions.md, **internal documentation takes precedence**.
+When conflicts arise between external style guides and the internal CONTRIBUTING.md or copilot_instructions.md, **internal documentation takes precedence**.
 
 ---
 
@@ -225,33 +209,20 @@ var _ dsemgmtpbv1.DSEServer = (*Server)(nil)
 
 ### gRPC + gRPC-Gateway
 
-- gRPC server starts first; HTTP gateway connects to it (same-pod, insecure credentials).
-- Synchronized startup via `sync.WaitGroup`.
+- gRPC server starts first; HTTP gateway connects to it (same-pod, insecure credentials). Synchronized startup via `sync.WaitGroup`.
 - `auth.CustomHeaderMatcher` forwards the `Cwid` header through the gateway.
-- Graceful shutdown: 25-second timeout (matching Kubernetes 30-second SIGKILL window).
-- Signal handling: `SIGINT`, `SIGTERM`, `SIGKILL`.
+- Graceful shutdown: 25-second timeout (matching Kubernetes 30-second SIGKILL window). Handles `SIGINT`, `SIGTERM`, `SIGKILL`.
 
 ### Dependency Injection & Composition
 
 - **Accept interfaces, return structs** — follow the Go proverb.
 - **Use constructor functions** — never create structs directly; use `New*()` factory functions with dependency injection.
 - **Use composition** — inject dependencies via struct fields, keeping components decoupled and independently testable.
-- **Create focused, single-purpose interfaces** — follow the Interface Segregation Principle. Avoid broad God-interfaces.
-
-```go
-// Good — accept interface, return concrete struct
-func NewAzureTokenClient(httpClient HTTPClient, secretsManager SecretsManager) *AzureTokenClient {
-    return &AzureTokenClient{
-        httpClient:     httpClient,
-        secretsManager: secretsManager,
-    }
-}
-```
+- **Create focused, single-purpose interfaces** — follow the Interface Segregation Principle.
 
 ### Database Layer
 
-- DynamoDB is accessed through `database.CollectionInterface` — an interface providing `Store`, `Delete`, `Fetch`, `UpdateField`, `List`.
-- Each `Server` struct holds multiple `CollectionInterface` pointers (one per table/collection).
+- DynamoDB accessed through `database.CollectionInterface` (`Store`, `Delete`, `Fetch`, `UpdateField`, `List`). Each `Server` struct holds multiple `CollectionInterface` pointers.
 - Interface-based design enables easy mock injection for testing.
 - Pagination uses DynamoDB scan with `LastEvaluatedKey`.
 
@@ -311,16 +282,12 @@ func myFunction(ctx context.Context) error {
 **Primary pattern** — `logger.NewError(description, err)`:
 
 ```go
-// Wrap and return errors — they bubble to the gRPC interceptor at the top of the stack
 if err != nil {
     return logger.NewError("failed to create tenant", err)
 }
 
 // gRPC status codes for user-facing errors
 return logger.NewError("tenant not found", status.Error(codes.NotFound, "tenant does not exist"))
-
-// Accumulating errors in defer blocks
-err = errors.Join(err, logger.NewError("cleanup failed", cleanupErr))
 ```
 
 **Rules:**
@@ -332,23 +299,7 @@ err = errors.Join(err, logger.NewError("cleanup failed", cleanupErr))
 
 ### Configuration
 
-Use `kelseyhightower/envconfig` with per-service prefixes:
-
-```go
-type ServiceConfig struct {
-    Host     string `default:"0.0.0.0" split_words:"true"`
-    GrpcPort string `default:"8080" split_words:"true"`
-    HttpPort string `default:"8081" split_words:"true"`
-}
-
-var config ServiceConfig
-if err := envconfig.Process("DSEMGMT", &config); err != nil {
-    logger.Fatal(ctx, "failed to load env vars", err)
-}
-```
-
-- Environment variables are prefixed per service: `DSEMGMT_*`, `MODELS_*`, `TERRAFORMWORKER_*`, etc.
-- Use `split_words:"true"` tag convention (e.g., `AssetStackQueueName` → `ASSET_STACK_QUEUE_NAME`).
+Use `kelseyhightower/envconfig` with per-service prefixes (`DSEMGMT_*`, `MODELS_*`, `TERRAFORMWORKER_*`, etc.). Use `split_words:"true"` tag convention (e.g., `AssetStackQueueName` → `ASSET_STACK_QUEUE_NAME`).
 
 ### Resource Naming
 
@@ -377,15 +328,11 @@ Use `internal/resourcename` package for constructing and parsing resource names.
 
 ### Audit Records
 
-- Use `internal/audit.New(ctx, auditRecord)` to stamp audit records.
-- Audit records are `proto.Clone()`d for safety, then timestamped server-side via `timestamppb.Now()`.
-- Validation is applied via `validate.ProtoMessage()` on audit messages too.
+Use `internal/audit.New(ctx, auditRecord)` to stamp audit records. Records are `proto.Clone()`d then timestamped server-side via `timestamppb.Now()`. Validation is applied via `validate.ProtoMessage()`.
 
 ### Field Masks
 
-- Use `internal/fieldmask` for partial responses and partial updates (Google API Design Guide pattern).
-- `Validate()`, `Apply()`, `ApplySlice()`, `Merge()` are the core functions, using `protoreflect` for dynamic field access.
-- Multi-level field mask paths are not yet supported.
+Use `internal/fieldmask` for partial responses/updates (Google API Design Guide pattern). Core functions: `Validate()`, `Apply()`, `ApplySlice()`, `Merge()` (using `protoreflect`). Multi-level paths not yet supported.
 
 ---
 
@@ -395,8 +342,7 @@ Use `internal/resourcename` package for constructing and parsing resource names.
 
 - **Buf** manages all proto schemas (`buf.yaml`, `buf.gen.yaml`).
 - Code generation targets: Go (protobuf + gRPC + gateway), Python, TypeScript, OpenAPI v2.
-- Run `make generate` after modifying any `.proto` file. This cleans, generates, formats, and packages all targets.
-- **Never** manually edit files in `generated/`.
+- Run `make generate` after modifying any `.proto` file.
 
 ### Proto Structure
 
@@ -450,8 +396,7 @@ Every `rpc` definition in proto files **must** have a corresponding entry in at 
    go generate internal/profileapi/generate.go
    ```
 3. The generated client code will appear in `generated/profilev3/generated.go` (or the corresponding output directory configured in `genqlient.yaml`).
-4. **Never** manually edit the generated output files — they are overwritten on each regeneration.
-5. Use the generated type-safe functions in your Go code instead of building raw GraphQL request strings.
+4. Use the generated type-safe functions in your Go code instead of building raw GraphQL request strings.
 
 ---
 
@@ -503,39 +448,11 @@ func TestMyFunction(t *testing.T) {
 
 ### Mock Patterns
 
-- **Struct-based mocks with function fields** (not generated):
-
-```go
-type MockHTTPClient struct {
-    DoFunc func(req *http.Request) (*http.Response, error)
-}
-
-func (m *MockHTTPClient) Do(req *http.Request) (*http.Response, error) {
-    if m.DoFunc != nil {
-        return m.DoFunc(req)
-    }
-    return nil, fmt.Errorf("DoFunc not implemented")
-}
-```
-
-- Mock the `database.CollectionInterface` for database-related tests.
-- Mock cloud service interfaces (`cloud/v2`) via their corresponding mock structs.
-- Use `//nolint:wrapcheck` for passthrough calls in mock implementations.
+Use **struct-based mocks with function fields** (not generated). Mock `database.CollectionInterface` for DB tests and `cloud/v2` interfaces for cloud tests. Use `//nolint:wrapcheck` for passthrough calls in mock implementations.
 
 ### Integration Test Conventions
 
-```go
-//go:build integration
-
-package mypackage
-
-func TestServiceIntegration(t *testing.T) {
-    ctx := context.Background()
-    // Test actual service interactions against LocalStack
-}
-```
-
-- Do NOT use `testing.Short()` for integration tests — use build tags.
+- Use `//go:build integration` build tag (NOT `testing.Short()`).
 - Integration tests hit real (LocalStack-emulated) endpoints.
 - Use `runtime.JSONPb` marshaler for proto JSON serialization.
 
@@ -591,26 +508,7 @@ git checkout -b fix/<bug-description>       # Bug fixes
 
 ### Manual API Testing Notes
 
-When a ticket involves new or changed API behavior (new fields, validation rules, enum values, etc.), create a testing notes file in `testdata/api-calls/` with:
-
-1. Auth prerequisites and environment details.
-2. One section per test scenario with the `auth curl` command and expected response.
-3. A placeholder for screenshots after each test.
-
-Example structure:
-
-```markdown
-## Test 1: Create Resource — Default behavior
-### Request
-\`\`\`bash
-auth curl -X POST https://apis.dse-dev.bayer.com/v1/resources ...
-\`\`\`
-### Expected Result
-- Status: 200 OK
-- Response contains `"field": "DEFAULT_VALUE"`
-### Screenshot
-> _Add screenshot here_
-```
+When a ticket involves new or changed API behavior (new fields, validation rules, enum values, etc.), create a testing notes file in `testdata/api-calls/` with auth prerequisites, one section per test scenario (`auth curl` command + expected response + screenshot placeholder).
 
 Not every ticket requires this — use judgment. If the change only affects internal logic with no API surface impact, unit tests alone are sufficient.
 
@@ -862,11 +760,7 @@ make ci
 go build ./...
 ```
 
-- **`make lint`** — Runs protobuf linting and golangci-lint (formatting + static analysis).
-- **`make ci`** — Runs the full pre-commit hook suite (the same checks that run in the CI pipeline): protobuf lint, code generation freshness, `go mod tidy`, golangci-lint, `govulncheck`, unit tests, logging convention checks, proto policy checks, shell linting, and Kubernetes manifest validation.
-- **`go build ./...`** — Verifies the entire module compiles cleanly.
-
-If any of these fail, fix the issues before committing or opening a PR. These are the same gates enforced by CI, so catching failures locally saves time.
+If any fail, fix before committing. These are the same gates enforced by CI.
 
 ---
 
@@ -876,15 +770,7 @@ To access AWS resources (CloudWatch logs, S3, ECR, etc.), use **AWS SSO** with t
 
 ### Initial Setup
 
-La configuración ya existe en `~/.aws/config`. Los perfiles usan una sesión SSO compartida llamada `dse`:
-
-| SSO Session | `dse` |
-|-------------|-------|
-| SSO start URL | `https://bayer-prod.awsapps.com/start` |
-| SSO region | `us-east-1` |
-| SSO registration scopes | `sso:account:access` |
-
-**Perfiles disponibles**:
+La configuración ya existe en `~/.aws/config`. Los perfiles usan una sesión SSO compartida llamada `dse` (start URL: `https://bayer-prod.awsapps.com/start`, region: `us-east-1`).
 
 | Profile | Account ID | Description |
 |---------|------------|-------------|
@@ -894,12 +780,6 @@ La configuración ya existe en `~/.aws/config`. Los perfiles usan una sesión SS
 | `functional-nonprod` | `038462751056` | Functional nonprod account |
 
 All profiles use role `sso-standard-user`, region `us-east-1`, output `json`.
-
-Si necesitas configurar desde cero:
-
-```bash
-aws configure sso --profile nonprod
-```
 
 ### Login (each time session expires)
 
