@@ -103,3 +103,9 @@ Follow the implementation order from the plan. Mark progress using the todo list
 - Never start coding before understanding cross-repo impact
 - Always pull latest `main` before branching
 - If the ticket is ambiguous, ask — don't guess
+
+---
+
+## Next step
+
+When implementation is complete, run the [Implementation Checklist](implementation-checklist.md) to verify everything before creating a PR.

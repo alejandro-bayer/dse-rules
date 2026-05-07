@@ -72,7 +72,7 @@ If the ticket modifies the deployment pipeline (new terraform inputs, assetstack
 - [ ] Deployed to dev or nonprod
 - [ ] API-level tests: Create/Get resources with new fields, verify validation
 - [ ] Terraform worker receives correct inputs (check CloudWatch logs)
-- [ ] Test evidence documented (see [Jobs E2E Testing Guide](guides/jobs-e2e-testing.md))
+- [ ] Test evidence documented (see [Jobs E2E Testing Guide](../guides/jobs-e2e-testing.md))
 - [ ] Testing notes file created in `testing-files/` with actual curl commands and responses
 
 ### Documentation
@@ -94,7 +94,8 @@ If the ticket modifies the deployment pipeline (new terraform inputs, assetstack
 When all items pass:
 ```
 All checks passed. Ready for PR.
-Next step: run the create-pr workflow.
 ```
+
+Next step: run the [Create PR](create-pr.md) workflow.
 
 If items fail, list what's pending and fix before proceeding.

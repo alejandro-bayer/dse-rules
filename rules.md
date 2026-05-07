@@ -40,6 +40,7 @@ This repo contains additional guides, troubleshooting docs, and test evidence or
 | [d3p-2068-job-type-PR.md](testing-files/d3p-2068-job-type-PR.md) | [#634](https://github.com/bayer-int/dse-apis/pull/634) | `job_type` field — copy-paste ready test evidence for PR comment |
 | [d3p-2068-job-type.md](testing-files/d3p-2068-job-type.md) | [#634](https://github.com/bayer-int/dse-apis/pull/634) | `job_type` field — detailed testing notes with screenshots |
 | [d3p-2140-update-csw-call.md](testing-files/d3p-2140-update-csw-call.md) | [#650](https://github.com/bayer-int/dse-apis/pull/650) | CSW owner information — testing notes for the CSW provisioning call update |
+| [d3p-2140-update-csw-call-PR.md](testing-files/d3p-2140-update-csw-call-PR.md) | [#650](https://github.com/bayer-int/dse-apis/pull/650) | CSW owner information — copy-paste ready test evidence for PR comment |
 
 ---
 
