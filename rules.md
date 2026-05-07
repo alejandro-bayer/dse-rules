@@ -18,6 +18,15 @@ This repo contains additional guides, troubleshooting docs, and test evidence or
 | [Model Playbook](guides/Model_Playbook.md) | Model development, registration, deployment, and invocation |
 | [CREST Authorization](guides/crest_authorization.md) | How CREST gateway auth works, entitlement identifiers, the 3-layer auth flow (CREST → App Code → PAPI), and Velocity UI management |
 
+### Workflows
+
+| Workflow | Description |
+|----------|-------------|
+| [Start Ticket](workflows/start-ticket.md) | Pick up an Aha! ticket: create branch, understand requirements, plan implementation |
+| [Implementation Checklist](workflows/implementation-checklist.md) | Definition of Done — all verification steps before creating a PR |
+| [Create PR](workflows/create-pr.md) | Commit, push, and create a PR with the team's required format and testing evidence |
+| [Review PR](workflows/review-pr.md) | Review a teammate's PR against ticket requirements and coding standards |
+
 ### Troubleshooting
 
 | Document | Description |
