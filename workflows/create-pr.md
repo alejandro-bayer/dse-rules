@@ -175,7 +175,18 @@ Result: PASS/FAIL
 - [ ] If unit-testable, presence of meaningful unit tests
 ```
 
-### 5. Create the PR
+### 5. Save the PR description to a file
+
+```bash
+# Save the filled-in template above to PR.md in the repo root
+cat > PR.md << 'EOF'
+<paste your filled-in PR description here>
+EOF
+```
+
+> **Note**: `PR.md` is a temporary file for `gh pr create`. Delete it after the PR is created, or add it to `.gitignore`.
+
+### 6. Create the PR
 
 ```bash
 gh pr create \
@@ -189,7 +200,12 @@ If a PR already exists for the branch:
 gh pr edit <PR_NUMBER> --body-file PR.md
 ```
 
-### 6. Verify
+Clean up:
+```bash
+rm PR.md
+```
+
+### 7. Verify
 
 ```bash
 gh pr view --web  # Open in browser to verify formatting

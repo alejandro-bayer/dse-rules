@@ -101,7 +101,7 @@ When conflicts arise between external style guides and the internal CONTRIBUTING
 
 | Layer | Technology |
 |-------|-----------|
-| Language | Go 1.25+ |
+| Language | Go 1.26+ |
 | API Framework | gRPC with grpc-gateway for HTTP/JSON REST endpoints |
 | Protocol Buffers | Buf (schema management, generation, linting, breaking change detection) |
 | Database | AWS DynamoDB (planned migration to RDBMS) |
@@ -153,7 +153,6 @@ dse-apis/
 │   ├── dse-api-*/                # Per-service charts
 │   ├── dse-*-workers/            # Per-worker charts
 │   └── values/                   # Environment-specific Helm values (dev, nonprod, prod)
-├── localstack/                   # Terraform config for local AWS emulation
 ├── testdata/                     # Test fixtures and SQS message samples
 ├── scripts/                      # CI enforcement scripts
 ├── build/                        # Dockerfiles
@@ -495,8 +494,6 @@ git checkout -b fix/<bug-description>       # Bug fixes
 | `make go-test` | Go tests only (assumes LocalStack already running) |
 | `make unit-tests` | Unit tests only (no external deps) |
 | `make integration-tests` | Integration tests only |
-| `make run-api-localstack` | Run DSEMgmt API against LocalStack |
-| `make run-worker-localstack worker=<name>` | Run a specific worker against LocalStack |
 | `make run-service-tester env=<env>` | Run E2E tests against a deployed environment |
 | `make deploy env=<env>` | Build, push, and deploy to target environment |
 | `make doc-server` | Start Go documentation server |

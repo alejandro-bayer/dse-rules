@@ -18,6 +18,12 @@ git branch --show-current
 
 ## Checklist
 
+All commands assume you are in the dse-apis root:
+
+```bash
+cd /workspaces/dse-apis
+```
+
 ### Code Quality
 
 ```bash
@@ -64,6 +70,14 @@ bash ./scripts/check-log-usage.sh
 - [ ] Protovalidate tests written for new proto validation rules
 - [ ] Table-driven test pattern used where applicable
 - [ ] Tests pass: `make unit-tests`
+
+### Service Tester (mandatory)
+
+```bash
+make run-service-tester env=dev
+```
+- [ ] Service-tester E2E tests pass against a deployed environment
+- [ ] Service-tester logs saved for PR evidence
 
 ### E2E Testing (for pipeline features)
 
