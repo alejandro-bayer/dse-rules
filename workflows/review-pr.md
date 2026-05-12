@@ -32,7 +32,36 @@ From the Aha! link in the PR body, understand:
 - Acceptance criteria (if any)
 - Scope boundaries
 
-### 3. Analyze the diff
+### 3. Local verification (when warranted)
+
+**Decide whether to checkout the branch locally** based on the nature of the changes. Do it when:
+
+- Proto files changed → run `make generate` and verify generated code is fresh
+- Go business logic changed → run `go build ./...` and `make lint` to catch compile/lint errors the author may have missed
+- New or modified test files → run `make unit-tests` (or the specific test file) to confirm tests pass
+- Validation logic changed (protovalidate, CEL) → run the specific protovalidate tests to verify edge cases
+- Helm/deploy changes → run `make lint` to catch K8s manifest issues
+
+**Skip local checkout** when the PR is docs-only, go.mod/go.sum-only, or trivially small (e.g., a one-line constant rename).
+
+```bash
+# Checkout the PR branch locally
+git fetch origin pull/<pr-number>/head:pr-<pr-number>
+git checkout pr-<pr-number>
+
+# Run relevant checks
+go build ./...
+make lint
+make unit-tests
+
+# Return to previous branch when done
+git checkout -
+git branch -D pr-<pr-number>
+```
+
+If any check fails, include the error output in the review findings as a **must-fix** item. The author may not have run CI locally.
+
+### 4. Analyze the diff
 
 For each changed file, evaluate against these categories:
 
@@ -87,7 +116,7 @@ If the PR touches terraform inputs, version bumps, or SQS message formats:
 - Are testing sections filled with actual evidence (screenshots, logs)?
 - Is `service-tester` evidence included?
 
-### 4. Produce the review
+### 5. Produce the review
 
 Structure the review as:
 
@@ -125,7 +154,7 @@ Structure the review as:
 - [ ] **Comment** — No blocking issues, but has suggestions
 ```
 
-### 5. Generate inline comment list
+### 6. Generate inline comment list
 
 After the review findings, produce a **copy-paste ready** list of inline comments for the user to post on the PR. Each item must include:
 
@@ -152,7 +181,7 @@ N. **`path/to/file.go`** — `<line content or identifier>`
 - When the fix is "add something missing", show the final code with the addition
 - Keep comments under 6 lines of prose (code blocks don't count)
 
-### 6. Submit the review
+### 7. Submit the review
 
 If using `gh`:
 ```bash
