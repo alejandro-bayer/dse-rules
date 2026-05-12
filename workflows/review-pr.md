@@ -125,7 +125,34 @@ Structure the review as:
 - [ ] **Comment** — No blocking issues, but has suggestions
 ```
 
-### 5. Submit the review
+### 5. Generate inline comment list
+
+After the review findings, produce a **copy-paste ready** list of inline comments for the user to post on the PR. Each item must include:
+
+- **File** — relative path
+- **Line anchor** — the specific line of the *new* code in the diff (not the old code)
+- **Comment** — concise, B2-English, self-explanatory. Do NOT reference rules.md or internal docs
+- **Fix example** (when applicable) — a short code snippet showing the fix, OR a reference to an existing file in the repo where the correct pattern is already implemented
+
+Format each comment as:
+
+```
+N. **`path/to/file.go`** — `<line content or identifier>`
+
+> <Comment text>
+> ```go  (or protobuf, etc.)
+> <fix example if applicable>
+> ```
+```
+
+**Rules for this section:**
+- One entry per finding (must-fix, should-fix, nitpick). Skip positives
+- Comments must stand alone — a reader seeing only the inline comment should understand the problem and the solution without needing the full review
+- When the fix is "do it like it's already done elsewhere", include the file path and a brief snippet of the existing pattern
+- When the fix is "add something missing", show the final code with the addition
+- Keep comments under 6 lines of prose (code blocks don't count)
+
+### 6. Submit the review
 
 If using `gh`:
 ```bash
