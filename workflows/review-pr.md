@@ -49,17 +49,22 @@ From the Aha! link in the PR body, understand:
 git fetch origin pull/<pr-number>/head:pr-<pr-number>
 git checkout pr-<pr-number>
 
-# Run relevant checks
-go build ./...
-make lint
-make unit-tests
+# Run the same checks as adversarial-audit phases 3-5:
+go build ./...          # Internal consistency — does it compile?
+make lint               # Lint — golangci-lint + proto lint
+make unit-tests         # Test verification — do tests pass?
+
+# If proto changed, verify generated code is fresh:
+make generate && git diff --exit-code generated/
 
 # Return to previous branch when done
 git checkout -
 git branch -D pr-<pr-number>
 ```
 
-If any check fails, include the error output in the review findings as a **must-fix** item. The author may not have run CI locally.
+If any check fails, include the **exact error output** in the review findings as a **must-fix** item. The author may not have run CI locally.
+
+> **Relationship to adversarial audit**: This step runs the same verification commands as [adversarial-audit.md](adversarial-audit.md) phases 3–5, but **without the fix loop** — as a reviewer you report failures, you don't fix them.
 
 ### 4. Analyze the diff
 
