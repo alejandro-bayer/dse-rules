@@ -36,28 +36,64 @@ From the Aha! link in the PR body, understand:
 
 **Decide whether to checkout the branch locally** based on the nature of the changes. Do it when:
 
-- Proto files changed → run `make generate` and verify generated code is fresh
-- Go business logic changed → run `go build ./...` and `make lint` to catch compile/lint errors the author may have missed
-- New or modified test files → run `make unit-tests` (or the specific test file) to confirm tests pass
-- Validation logic changed (protovalidate, CEL) → run the specific protovalidate tests to verify edge cases
+- Code logic changed → run the build and lint commands for the project language
+- New or modified test files → run the test suite to confirm tests pass
+- Proto files changed (Go repos) → run `make generate` and verify generated code is fresh
+- Validation logic changed (protovalidate, CEL) → run the specific validation tests
 - Helm/deploy changes → run `make lint` to catch K8s manifest issues
 
-**Skip local checkout** when the PR is docs-only, go.mod/go.sum-only, or trivially small (e.g., a one-line constant rename).
+**Skip local checkout** when the PR is docs-only, dependency-file-only (`go.mod`, `requirements.txt`, `package.json`), or trivially small (e.g., a one-line constant rename).
+
+**First**, detect the project language from the repo root. Look for `go.mod` (Go), `pyproject.toml` or `setup.py` or `requirements.txt` (Python), `package.json` (Node/TS), or `Makefile`/shell scripts (Shell). Then use the matching command set:
 
 ```bash
-# Checkout the PR branch locally
+# Checkout the PR branch locally (same for all languages)
 git fetch origin pull/<pr-number>/head:pr-<pr-number>
 git checkout pr-<pr-number>
+```
 
-# Run the same checks as adversarial-audit phases 3-5:
-go build ./...          # Internal consistency — does it compile?
-make lint               # Lint — golangci-lint + proto lint
-make unit-tests         # Test verification — do tests pass?
+#### Go projects (`go.mod` present — e.g. dse-apis)
+
+```bash
+go build ./...          # Does it compile?
+make lint               # golangci-lint + proto lint
+make unit-tests         # Test suite
 
 # If proto changed, verify generated code is fresh:
 make generate && git diff --exit-code generated/
+```
 
-# Return to previous branch when done
+#### Python projects (`pyproject.toml` / `setup.py` — e.g. dse-sdk)
+
+```bash
+pip install -e ".[dev]" 2>/dev/null || pip install -e .   # Install in dev mode
+python -m pytest tests/ -x                                # Run tests, stop on first failure
+python -m ruff check .                                    # Lint (if ruff configured)
+python -m mypy src/     2>/dev/null || true               # Type check (if mypy configured)
+```
+
+#### Shell / infrastructure repos (e.g. dse-assetstacks, dse-custom-development-images)
+
+```bash
+shellcheck **/*.sh 2>/dev/null || true   # Lint shell scripts
+# For Dockerfiles:
+docker build --check . 2>/dev/null || true
+# For Terraform:
+terraform validate 2>/dev/null || true
+terraform fmt -check 2>/dev/null || true
+```
+
+#### Node/TypeScript projects (`package.json` present)
+
+```bash
+npm ci                  # Clean install
+npm run lint            # Lint
+npm test                # Test suite
+npm run build           # Does it compile?
+```
+
+```bash
+# Return to previous branch when done (same for all)
 git checkout -
 git branch -D pr-<pr-number>
 ```
